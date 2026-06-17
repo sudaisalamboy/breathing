@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Energy Breathing</title>
+    <style>
+        :root {
+            --bg: #050210;
+            --orb-core: #6366f1;
+            --orb-glow: #a855f7;
+            --t-inhale: 4s;
+            --t-hold: 7s;
+            --t-exhale: 8s;
+            --t-holdOut: 0s;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #ambient-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        /* --- SETTINGS BUTTON & PANEL --- */
+        #settings-btn {
+            position: absolute;
+            top: 30px; left: 30px;
+            width: 45px; height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.4rem;
+            cursor: pointer;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        #settings-btn:hover { background: rgba(99, 102, 241, 0.2); color: var(--orb-core); }
+
+        #settings-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 2, 16, 0.85);
+            backdrop-filter: blur(20px);
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        #settings-overlay.active { opacity: 1; pointer-events: all; }
+
+        .settings-panel {
+            width: 90%;
+            max-width: 350px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
+        }
+
+        .settings-title {
+            font-size: 1.2rem;
+            color: var(--orb-core);
+            margin-bottom: 25px;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .setting-label { font-size: 0.95rem; color: rgba(255,255,255,0.7); }
+
+        /* Toggle Switch */
+        .switch { position: relative; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s; border-radius: 26px;
+        }
+        .slider:before {
+            position: absolute; content: "";
+            height: 18px; width: 18px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--orb-core); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        .close-settings {
+            width: 100%; padding: 12px;
+            margin-top: 10px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--orb-core);
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .close-settings:hover { background: rgba(99, 102, 241, 0.3); }
+
+        /* --- IST CLOCK --- */
+        #clock-container {
+            position: absolute;
+            top: 30px; right: 30px;
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(99, 102, 241, 0.05);
+            z-index: 20;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .clock-face {
+            position: relative;
+            width: 110px; height: 110px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.05), transparent 60%);
+        }
+
+        .marker {
+            position: absolute; width: 2px; height: 8px;
+            background: rgba(255, 255, 255, 0.4);
+            top: 4px; left: 50%;
+            transform-origin: center 51px;
+        }
+        .marker.main-marker { height: 12px; width: 2.5px; background: rgba(255, 255, 255, 0.8); }
+
+        .hand {
+            position: absolute; bottom: 50%; left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg);
+            border-radius: 4px;
+        }
+
+        .hour-hand { width: 3.5px; height: 28px; background: linear-gradient(to top, transparent, #ffffff); z-index: 3; box-shadow: 0 0 5px rgba(255,255,255,0.3); }
+        .minute-hand { width: 2.5px; height: 38px; background: linear-gradient(to top, transparent, #ffffff); z-index: 4; box-shadow: 0 0 5px rgba(255,255,255,0.3); }
+        .second-hand { width: 1.2px; height: 42px; background: var(--orb-core); z-index: 5; box-shadow: 0 0 8px var(--orb-glow); transition: none; }
+        .center-dot { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; background: var(--orb-glow); border-radius: 50%; transform: translate(-50%, -50%); z-index: 6; box-shadow: 0 0 10px var(--orb-core); }
+        #ist-label { position: absolute; top: 65%; left: 50%; transform: translateX(-50%); font-size: 0.55rem; color: rgba(168, 85, 247, 0.6); letter-spacing: 2px; font-weight: 600; }
+
+        /* --- ORB & ANIMATION --- */
+        #orb-container {
+            position: relative; width: 220px; height: 220px; z-index: 2;
+            display: flex; align-items: center; justify-content: center;
+            will-change: transform; transform: scale(1) translateZ(0);
+            transition: transform var(--t-exhale) cubic-bezier(0.61, 0, 0.88, 1); 
+        }
+
+        #orb-container.phase-inhale { transition: transform var(--t-inhale) cubic-bezier(0.12, 0, 0.39, 1); transform: scale(1.7) translateZ(0); }
+        #orb-container.phase-hold { transition: transform var(--t-hold) linear; transform: scale(1.7) translateZ(0); }
+        #orb-container.phase-exhale { transition: transform var(--t-exhale) cubic-bezier(0.61, 0, 0.88, 1); transform: scale(1) translateZ(0); }
+        #orb-container.phase-holdOut { transition: transform var(--t-holdOut) linear; transform: scale(1) translateZ(0); }
+
+        #orb {
+            width: 100%; height: 100%; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #ffffff, var(--orb-core) 50%, var(--orb-glow) 80%, transparent 100%);
+            position: relative; overflow: hidden;
+            box-shadow: 0 0 60px rgba(99, 102, 241, 0.4), 0 0 120px rgba(168, 85, 247, 0.2);
+            transition: box-shadow var(--t-exhale) ease-out;
+        }
+
+        #orb-container.phase-inhale #orb { box-shadow: 0 0 80px rgba(99, 102, 241, 0.8), 0 0 160px rgba(168, 85, 247, 0.4), inset 0 0 40px rgba(255, 255, 255, 0.4); transition: box-shadow var(--t-inhale) ease-out; }
+        #orb-container.phase-exhale #orb { box-shadow: 0 0 40px rgba(99, 102, 241, 0.2), 0 0 80px rgba(168, 85, 247, 0.1); transition: box-shadow var(--t-exhale) ease-out; }
+
+        #orb::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.4), transparent, rgba(168,85,247,0.3), transparent);
+            animation: spin-plasma 12s linear infinite; filter: blur(15px);
+        }
+        #orb::after {
+            content: ''; position: absolute; top: 10%; left: 10%; width: 50%; height: 50%;
+            border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.9), transparent 70%);
+            opacity: 0.6; filter: blur(5px);
+        }
+
+        @keyframes spin-plasma { to { transform: rotate(360deg); } }
+
+        .ripple {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            border: 1px solid rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+            animation: ripple-expand var(--t-inhale) cubic-bezier(0.12, 0, 0.39, 1) forwards;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-expand { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3.5); opacity: 0; } }
+
+        #ui-overlay { position: absolute; text-align: center; z-index: 10; pointer-events: none; }
+        #state-text { font-size: 1.4rem; font-weight: 200; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 8px; text-shadow: 0 0 10px rgba(99, 102, 241, 0.5); }
+        #timer-text { font-size: 3.5rem; font-weight: 100; font-variant-numeric: tabular-nums; text-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+
+        /* --- CONTROLS --- */
+        #controls {
+            position: absolute; bottom: 40px;
+            display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 20;
+        }
+
+        .btn-group {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+            background: rgba(255, 255, 255, 0.03); padding: 8px; border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(15px);
+            max-width: 360px;
+        }
+
+        .mode-btn, .action-btn {
+            background: transparent; color: rgba(255, 255, 255, 0.5); border: none;
+            padding: 8px 14px; border-radius: 50px; cursor: pointer; font-size: 0.8rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); font-family: inherit; letter-spacing: 0.5px;
+        }
+
+        .mode-btn.active {
+            background: rgba(99, 102, 241, 0.15); color: var(--orb-core);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.15), inset 0 0 8px rgba(99, 102, 241, 0.1);
+        }
+
+        .action-btn {
+            background: rgba(99, 102, 241, 0.05); color: var(--orb-core);
+            border: 1px solid rgba(99, 102, 241, 0.2); min-width: 140px;
+            font-weight: 500; letter-spacing: 2px; text-transform: uppercase; font-size: 0.8rem;
+        }
+        .action-btn:hover { background: rgba(99, 102, 241, 0.15); box-shadow: 0 0 30px rgba(99, 102, 241, 0.2); }
+        .action-btn:active { transform: scale(0.95); }
+
+        #credit {
+            position: absolute; bottom: 12px; width: 100%; text-align: center;
+            font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;
+            color: rgba(168, 85, 247, 0.25); z-index: 20; pointer-events: none;
+        }
+
+        @media (max-width: 600px) {
+            #clock-container { width: 100px; height: 100px; top: 15px; right: 15px; }
+            .clock-face { width: 80px; height: 80px; }
+            .marker { transform-origin: center 36px; height: 6px; top: 3px; }
+            .marker.main-marker { height: 8px; }
+            .hour-hand { height: 20px; } .minute-hand { height: 28px; } .second-hand { height: 30px; }
+            #ist-label { font-size: 0.4rem; top: 68%; }
+            #settings-btn { top: 15px; left: 15px; width: 35px; height: 35px; font-size: 1.1rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="ambient-canvas"></canvas>
+
+    <!-- Settings Button -->
+    <button id="settings-btn">⚙</button>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay">
+        <div class="settings-panel">
+            <div class="settings-title">Settings</div>
+            
+            <div class="setting-row">
+                <span class="setting-label">🔊 Ambient Sound</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-sound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">📳 Haptic Feedback</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-haptic" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-label">✨ Particle Effects</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-particles" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button class="close-settings" id="close-settings">Done</button>
+        </div>
+    </div>
+
+    <!-- IST Clock Structure -->
+    <div id="clock-container">
+        <div class="clock-face" id="clock-face">
+            <div class="hand hour-hand" id="hour"></div>
+            <div class="hand minute-hand" id="minute"></div>
+            <div class="hand second-hand" id="second"></div>
+            <div class="center-dot"></div>
+            <div id="ist-label">IST</div>
+        </div>
+    </div>
+
+    <div id="orb-container" class="phase-holdOut">
+        <div id="orb"></div>
+        <div id="ui-overlay">
+            <div id="state-text">Ready</div>
+            <div id="timer-text"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="btn-group">
+            <!-- Modes -->
+            <button class="mode-btn active" data-mode="478">4-7-8 Relax</button>
+            <button class="mode-btn" data-mode="box">4-4-4-4 Box</button>
+            <button class="mode-btn" data-mode="coherent">5-5 Coherent</button>
+            <button class="mode-btn" data-mode="energize">2-2 Energize</button>
+            <button class="mode-btn" data-mode="sleep">4-4-6-2 Sleep</button>
+            <button class="mode-btn" data-mode="calm">3-6 Calm</button>
+        </div>
+        <button id="start-btn" class="action-btn">Begin</button>
+    </div>
+
+    <div id="credit">make by AiFuseX</div>
+
+    <script>
+        // --- Configuration & Modes ---
+        const MODES = {
+            '478': { inhale: 4, hold: 7, exhale: 8, holdOut: 0 },
+            'box': { inhale: 4, hold: 4, exhale: 4, holdOut: 4 },
+            'coherent': { inhale: 5, hold: 0, exhale: 5, holdOut: 0 },
+            'energize': { inhale: 2, hold: 0, exhale: 2, holdOut: 0 },  // Fast pace
+            'sleep': { inhale: 4, hold: 4, exhale: 6, holdOut: 2 },    // Extended exhale
+            'calm': { inhale: 3, hold: 0, exhale: 6, holdOut: 0 }      // Letting go
+        };
+
+        // --- DOM Elements ---
+        const root = document.documentElement;
+        const orbContainer = document.getElementById('orb-container');
+        const stateText = document.getElementById('state-text');
+        const timerText = document.getElementById('timer-text');
+        const startBtn = document.getElementById('start-btn');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const canvas = document.getElementById('ambient-canvas');
+        const ctx = canvas.getContext('2d');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const closeSettingsBtn = document.getElementById('close-settings');
+        const toggleSound = document.getElementById('toggle-sound');
+        const toggleHaptic = document.getElementById('toggle-haptic');
+        const toggleParticles = document.getElementById('toggle-particles');
+
+        // --- App State ---
+        let currentMode = '478';
+        let isRunning = false;
+        let currentPhase = 'holdOut';
+        let phaseTimeout = null;
+        let timerInterval = null;
+        let audioCtx = null;
+        
+        // Settings State
+        let soundEnabled = true;
+        let hapticEnabled = true;
+        let particlesEnabled = true;
+
+        // --- Settings Logic ---
+        settingsBtn.addEventListener('click', () => settingsOverlay.classList.add('active'));
+        closeSettingsBtn.addEventListener('click', () => settingsOverlay.classList.remove('active'));
+        settingsOverlay.addEventListener('click', (e) => {
+            if (e.target === settingsOverlay) settingsOverlay.classList.remove('active');
+        });
+
+        toggleSound.addEventListener('change', (e) => {
+            soundEnabled = e.target.checked;
+            if (!soundEnabled && audioCtx) {
+                // Mute audio instantly
+                const { gain1, gain2 } = window.audioNodes;
+                gain1.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                gain2.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            } else if (soundEnabled && isRunning) {
+                updateAudio(currentPhase, 1); // Fade back in
+            }
+        });
+
+        toggleHaptic.addEventListener('change', (e) => hapticEnabled = e.target.checked);
+        
+        toggleParticles.addEventListener('change', (e) => {
+            particlesEnabled = e.target.checked;
+            canvas.style.opacity = particlesEnabled ? '1' : '0';
+        });
+
+        function triggerHaptic() {
+            if (hapticEnabled && window.navigator.vibrate) {
+                window.navigator.vibrate(30); // Short soft vibration
+            }
+        }
+
+        // --- Clock Logic (Strict IST) ---
+        const clockFace = document.getElementById('clock-face');
+        const hourHand = document.getElementById('hour');
+        const minuteHand = document.getElementById('minute');
+        const secondHand = document.getElementById('second');
+
+        for (let i = 1; i <= 12; i++) {
+            const marker = document.createElement('div');
+            marker.classList.add('marker');
+            if (i % 3 === 0) marker.classList.add('main-marker');
+            marker.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
+            clockFace.insertBefore(marker, clockFace.firstChild);
+        }
+
+        function updateISTClock() {
+            const now = new Date();
+            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const istTime = new Date(utcTime + (5.5 * 3600000));
+            const h = istTime.getHours() % 12;
+            const m = istTime.getMinutes();
+            const s = istTime.getSeconds();
+            const ms = istTime.getMilliseconds();
+            const secDeg = ((s + ms / 1000) / 60) * 360;
+            const minDeg = ((m + s / 60) / 60) * 360;
+            const hrDeg = ((h + m / 60) / 12) * 360;
+            secondHand.style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
+            minuteHand.style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+            hourHand.style.transform = `translateX(-50%) rotate(${hrDeg}deg)`;
+            requestAnimationFrame(updateISTClock);
+        }
+        updateISTClock();
+
+        // --- Canvas & Bokeh Particles ---
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class BokehParticle {
+            constructor() { this.reset(true); }
+            reset(initial = false) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = Math.random() * 40 + 20;
+                this.opacity = Math.random() * 0.08 + 0.02;
+                this.baseX = this.x; this.baseY = this.y;
+                this.angleX = Math.random() * Math.PI * 2;
+                this.angleY = Math.random() * Math.PI * 2;
+                this.speedX = (Math.random() * 0.005 + 0.001) * (Math.random() < 0.5 ? 1 : -1);
+                this.speedY = (Math.random() * 0.005 + 0.001) * (Math.random() < 0.5 ? 1 : -1);
+                this.range = Math.random() * 100 + 50;
+            }
+            update() {
+                this.angleX += this.speedX; this.angleY += this.speedY;
+                let targetX = this.baseX + Math.sin(this.angleX) * this.range;
+                let targetY = this.baseY + Math.cos(this.angleY) * this.range;
+                const centerX = canvas.width / 2; const centerY = canvas.height / 2;
+                const dx = this.baseX - centerX; const dy = this.baseY - centerY;
+                if (currentPhase === 'inhale') { targetX += dx * 0.1; targetY += dy * 0.1; } 
+                else if (currentPhase === 'exhale') { targetX -= dx * 0.05; targetY -= dy * 0.05; }
+                this.x += (targetX - this.x) * 0.02; this.y += (targetY - this.y) * 0.02;
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(168, 85, 247, ${this.opacity})`; ctx.fill();
+            }
+        }
+
+        const particles = [];
+        for (let i = 0; i < 25; i++) particles.push(new BokehParticle());
+
+        function animateCanvas() {
+            if (!particlesEnabled) { requestAnimationFrame(animateCanvas); return; } // Pause drawing if off
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animateCanvas);
+        }
+        animateCanvas();
+
+        function createRipple() {
+            if (!isRunning) return;
+            const ripple = document.createElement('div');
+            ripple.classList.add('ripple');
+            orbContainer.appendChild(ripple);
+            ripple.addEventListener('animationend', () => ripple.remove());
+        }
+
+        function updateModeTimings() {
+            const mode = MODES[currentMode];
+            root.style.setProperty('--t-inhale', `${mode.inhale}s`);
+            root.style.setProperty('--t-hold', `${mode.hold}s`);
+            root.style.setProperty('--t-exhale', `${mode.exhale}s`);
+            root.style.setProperty('--t-holdOut', `${mode.holdOut}s`);
+        }
+
+        // --- Audio Engine ---
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain(); const gain2 = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc1.type = 'sine'; osc1.frequency.value = 150;
+            osc2.type = 'sine'; osc2.frequency.value = 154;
+            filter.type = 'lowpass'; filter.frequency.value = 600;
+            gain1.gain.value = 0; gain2.gain.value = 0;
+            osc1.connect(gain1); gain1.connect(filter);
+            osc2.connect(gain2); gain2.connect(filter);
+            filter.connect(audioCtx.destination);
+            osc1.start(); osc2.start();
+            window.audioNodes = { gain1, gain2, osc1, filter };
+        }
+
+        function updateAudio(phase, duration) {
+            if (!audioCtx || !soundEnabled || duration === 0) return; // Respect settings
+            const { gain1, gain2, osc1, filter } = window.audioNodes;
+            const now = audioCtx.currentTime; const rampTime = duration * 0.8;
+            switch(phase) {
+                case 'inhale':
+                    osc1.frequency.exponentialRampToValueAtTime(250, now + rampTime);
+                    filter.frequency.exponentialRampToValueAtTime(1000, now + rampTime);
+                    gain1.gain.linearRampToValueAtTime(0.25, now + rampTime);
+                    gain2.gain.linearRampToValueAtTime(0.25, now + rampTime); break;
+                case 'hold':
+                    filter.frequency.exponentialRampToValueAtTime(500, now + rampTime);
+                    gain1.gain.linearRampToValueAtTime(0.15, now + rampTime);
+                    gain2.gain.linearRampToValueAtTime(0.15, now + rampTime); break;
+                case 'exhale':
+                    osc1.frequency.exponentialRampToValueAtTime(120, now + rampTime);
+                    filter.frequency.exponentialRampToValueAtTime(300, now + rampTime);
+                    gain1.gain.linearRampToValueAtTime(0.05, now + rampTime);
+                    gain2.gain.linearRampToValueAtTime(0.05, now + rampTime); break;
+                case 'holdOut':
+                    gain1.gain.linearRampToValueAtTime(0.01, now + rampTime);
+                    gain2.gain.linearRampToValueAtTime(0.01, now + rampTime); break;
+            }
+        }
+
+        // --- Timer ---
+        function startTimer(duration) {
+            clearInterval(timerInterval);
+            if (duration === 0) { timerText.innerText = ""; return; }
+            let timeLeft = duration; timerText.innerText = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft < 0) clearInterval(timerInterval);
+                else timerText.innerText = timeLeft;
+            }, 1000);
+        }
+
+        // --- Breathing Controller ---
+        function runCycle() {
+            if (!isRunning) return;
+            const mode = MODES[currentMode]; const phases = [];
+            if (mode.inhale > 0) phases.push({ name: 'inhale', duration: mode.inhale });
+            if (mode.hold > 0) phases.push({ name: 'hold', duration: mode.hold });
+            if (mode.exhale > 0) phases.push({ name: 'exhale', duration: mode.exhale });
+            if (mode.holdOut > 0) phases.push({ name: 'holdOut', duration: mode.holdOut });
+
+            let delay = 0;
+            phases.forEach((phase, index) => {
+                phaseTimeout = setTimeout(() => {
+                    if (!isRunning) return;
+                    currentPhase = phase.name;
+                    orbContainer.className = `phase-${phase.name}`;
+                    
+                    if (phase.name === 'inhale') { createRipple(); triggerHaptic(); } // Haptic on breath start
+                    if (phase.name === 'exhale') triggerHaptic(); // Haptic on exhale start
+
+                    stateText.innerText = phase.name === 'holdOut' ? 'Hold' : phase.name.charAt(0).toUpperCase() + phase.name.slice(1);
+                    updateAudio(phase.name, phase.duration);
+                    startTimer(phase.duration);
+                    if (index === phases.length - 1) {
+                        phaseTimeout = setTimeout(() => { if (isRunning) runCycle(); }, phase.duration * 1000);
+                    }
+                }, delay * 1000);
+                delay += phase.duration;
+            });
+        }
+
+        startBtn.addEventListener('click', () => {
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (isRunning) {
+                isRunning = false; currentPhase = 'holdOut';
+                clearTimeout(phaseTimeout); clearInterval(timerInterval);
+                startBtn.innerText = 'Begin'; stateText.innerText = 'Ready'; timerText.innerText = '';
+                orbContainer.style.transition = 'transform 1s ease-out, box-shadow 1s ease-out';
+                orbContainer.className = 'phase-holdOut';
+                setTimeout(() => { orbContainer.style.transition = ''; }, 1000);
+                updateAudio('exhale', 1);
+            } else {
+                isRunning = true; startBtn.innerText = 'Stop';
+                updateModeTimings(); runCycle();
+            }
+        });
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active'); currentMode = e.target.dataset.mode;
+                if (isRunning) { clearTimeout(phaseTimeout); clearInterval(timerInterval); updateModeTimings(); runCycle(); }
+            });
+        });
+
+    </script>
+</body>
+</html>
