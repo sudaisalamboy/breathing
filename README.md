@@ -9,3 +9,9 @@ Breathing Modes: From 4-7-8 Relax to Deep Sleep &amp; Energize—find your perfe
 | Dark-theme banner | The app running |
 
 > For full installation and run instructions, see **[SETUP.md](SETUP.md)**.
+
+## Keyboard Shortcuts
+No keyboard shortcuts — this is a visual breathing guide. Just open and follow along.
+
+## Credits
+Made by Sudais Alam
